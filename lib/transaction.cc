@@ -1899,7 +1899,21 @@ int rpmtsRun(rpmts ts, rpmps okProbs, rpmprobFilterFlags ignoreSet)
 	runTransScripts(ts, PKG_TRANSFILETRIGGERIN);
     }
     /* Final exit code */
-    rc = (nfailed || ts->scriptError) ? -1 : 0;
+    rc = nfailed ? -1 : 0;
+    if (rc == 0) {
+        /* If this boolean macro is set, scriptlet failures are fatal */
+        const char *macro = "%{_fail_on_scriptlet_errors}";
+        if (rpmExpandNumeric(macro)) {
+            if (ts->scriptError) {
+                rpmlog(RPMLOG_ERR, "Scriptlet errors observed, failing the transaction\n");
+                rc = -1;
+            }
+        }
+    } else {
+        if (ts->scriptError) {
+            rpmlog(RPMLOG_DEBUG, "Scriptlet errors observed but not considering them as fatal\n");
+        }
+    }
 
 exit:
     /* Run post transaction hook for all plugins */
